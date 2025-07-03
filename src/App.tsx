@@ -10,38 +10,38 @@ import { db } from './config/firebase';
 // Initialize sample data
 const initializeSampleData = async () => {
   try {
-    // Sample Participants
+    // Exeplos de Participantes demo
     const participants = [
-      { id: 'p1', name: 'Alex Johnson', bio: 'Fitness enthusiast and team leader', isActive: true, createdAt: new Date() },
-      { id: 'p2', name: 'Sarah Wilson', bio: 'Artist and creative strategist', isActive: true, createdAt: new Date() },
-      { id: 'p3', name: 'Mike Chen', bio: 'Chef and food innovator', isActive: true, createdAt: new Date() },
-      { id: 'p4', name: 'Emma Davis', bio: 'Adventure seeker and motivator', isActive: true, createdAt: new Date() }
+      { id: 'p1', name: 'Wagner Baiano', bio: 'Fitness enthusiast and team leader', isActive: true, createdAt: new Date() },
+      { id: 'p2', name: 'André Amado', bio: 'Artist and creative strategist', isActive: true, createdAt: new Date() },
+      { id: 'p3', name: 'Daiane Santos', bio: 'Chef and food innovator', isActive: true, createdAt: new Date() },
+      { id: 'p4', name: 'Reinaldo Alves', bio: 'Adventure seeker and motivator', isActive: true, createdAt: new Date() }
     ];
 
-    // Sample Locations
+    // Localizações Demo
     const locations = [
-      { id: 'l1', name: 'Main Living Area', description: 'Central hub for daily activities', color: '#3B82F6', createdAt: new Date() },
-      { id: 'l2', name: 'Kitchen', description: 'Cooking and meal prep area', color: '#EF4444', createdAt: new Date() },
-      { id: 'l3', name: 'Backyard', description: 'Outdoor activities and challenges', color: '#10B981', createdAt: new Date() },
-      { id: 'l4', name: 'Confessional', description: 'Private interview space', color: '#8B5CF6', createdAt: new Date() }
+      { id: 'l1', name: 'Sala', description: 'Central hub for daily activities', color: '#3B82F6', createdAt: new Date() },
+      { id: 'l2', name: 'Cozinha', description: 'Cooking and meal prep area', color: '#EF4444', createdAt: new Date() },
+      { id: 'l3', name: 'Academia', description: 'Outdoor activities and challenges', color: '#10B981', createdAt: new Date() },
+      { id: 'l4', name: 'Pscina', description: 'Private interview space', color: '#8B5CF6', createdAt: new Date() }
     ];
 
-    // Sample Action Categories
+    // Categorai de ações
     const actionCategories = [
-      { id: 'a1', name: 'Challenge', description: 'Competition or task-based activities', color: '#F59E0B', createdAt: new Date() },
-      { id: 'a2', name: 'Conflict', description: 'Disagreements or tensions', color: '#DC2626', createdAt: new Date() },
-      { id: 'a3', name: 'Alliance', description: 'Strategic partnerships', color: '#059669', createdAt: new Date() },
-      { id: 'a4', name: 'Confession', description: 'Private thoughts and strategies', color: '#7C3AED', createdAt: new Date() },
-      { id: 'a5', name: 'Social', description: 'Casual interactions and bonding', color: '#2563EB', createdAt: new Date() }
+      { id: 'a1', name: 'Falando de...', description: 'Competition or task-based activities', color: '#F59E0B', createdAt: new Date() },
+      { id: 'a2', name: 'Conflito', description: 'Disagreements or tensions', color: '#DC2626', createdAt: new Date() },
+      { id: 'a3', name: 'Alianças', description: 'Strategic partnerships', color: '#059669', createdAt: new Date() },
+      { id: 'a4', name: 'Briga', description: 'Private thoughts and strategies', color: '#7C3AED', createdAt: new Date() },
+      { id: 'a5', name: 'Casal', description: 'Casual interactions and bonding', color: '#2563EB', createdAt: new Date() }
     ];
 
     // Sample Tags
     const tags = [
       { id: 't1', name: 'Drama', color: '#DC2626', createdAt: new Date() },
-      { id: 't2', name: 'Strategy', color: '#059669', createdAt: new Date() },
-      { id: 't3', name: 'Emotional', color: '#7C3AED', createdAt: new Date() },
-      { id: 't4', name: 'Funny', color: '#F59E0B', createdAt: new Date() },
-      { id: 't5', name: 'Important', color: '#DC2626', createdAt: new Date() }
+      { id: 't2', name: 'Take - Zoom In', color: '#059669', createdAt: new Date() },
+      { id: 't3', name: 'Take Zoom Out', color: '#7C3AED', createdAt: new Date() },
+      { id: 't4', name: 'Dançando', color: '#F59E0B', createdAt: new Date() },
+      { id: 't5', name: 'Importante', color: '#DC2626', createdAt: new Date() }
     ];
 
     // Set sample data in Firestore
@@ -61,9 +61,9 @@ const initializeSampleData = async () => {
       await setDoc(doc(db, 'tags', tag.id), tag);
     }
 
-    console.log('Sample data initialized successfully');
+    console.log('Dados de amostra inicializados com sucesso');
   } catch (error) {
-    console.error('Error initializing sample data:', error);
+    console.error('Erro ao inicializar dados de amostra:', error);
   }
 };
 
@@ -98,7 +98,7 @@ const AppContent: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white text-lg">Loading Reality Show Logger...</p>
+          <p className="text-white text-lg">Carregando SIS Logguer...</p>
         </div>
       </div>
     );
