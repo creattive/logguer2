@@ -65,6 +65,7 @@ export interface AppState {
   darkMode: boolean;
   isRecording: boolean;
   currentTimecode: string;
+  isManualTimecode: boolean;
   selectedParticipants: string[];
   selectedLocation: string;
   selectedAction: string;
