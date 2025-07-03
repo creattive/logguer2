@@ -10,20 +10,31 @@ const Header: React.FC = () => {
   const [isEditingTimecode, setIsEditingTimecode] = useState(false);
   const [tempTimecode, setTempTimecode] = useState(state.currentTimecode);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
+  const [isManualMode, setIsManualMode] = useState(false);
 
   const handleLogout = async () => {
     try {
       await logout();
     } catch (error) {
-      console.error('Erro de logout:', error);
+      console.error('Logout error:', error);
     }
   };
 
   const handleTimecodeEdit = () => {
     if (isEditingTimecode) {
-      // Salvar o timecode editado
-      dispatch({ type: 'SET_TIMECODE', payload: tempTimecode });
-      setIsEditingTimecode(false);
+      // Validar formato do timecode (HH:MM:SS:FF)
+      const timecodeRegex = /^([0-1]?[0-9]|2[0-3]):([0-5]?[0-9]):([0-5]?[0-9]):([0-2]?[0-9]|3[0-1])$/;
+      
+      if (timecodeRegex.test(tempTimecode)) {
+        // Salvar o timecode editado e ativar modo manual
+        dispatch({ type: 'SET_TIMECODE', payload: tempTimecode });
+        dispatch({ type: 'SET_MANUAL_TIMECODE', payload: true });
+        setIsManualMode(true);
+        setIsEditingTimecode(false);
+      } else {
+        alert('Formato inválido! Use HH:MM:SS:FF (ex: 12:34:56:15)');
+        setTempTimecode(state.currentTimecode);
+      }
     } else {
       setTempTimecode(state.currentTimecode);
       setIsEditingTimecode(true);
@@ -31,7 +42,7 @@ const Header: React.FC = () => {
   };
 
   const handleSyncTimecode = () => {
-    // Sincronizar com o horário atual do sistema
+    // Sincronizar com o horário atual do sistema e desativar modo manual
     const now = new Date();
     const hours = String(now.getHours()).padStart(2, '0');
     const minutes = String(now.getMinutes()).padStart(2, '0');
@@ -40,9 +51,28 @@ const Header: React.FC = () => {
     
     const systemTimecode = `${hours}:${minutes}:${seconds}:${frames}`;
     dispatch({ type: 'SET_TIMECODE', payload: systemTimecode });
+    dispatch({ type: 'SET_MANUAL_TIMECODE', payload: false });
+    setIsManualMode(false);
     setTempTimecode(systemTimecode);
     setIsEditingTimecode(false);
   };
+
+  const handleCancelEdit = () => {
+    setTempTimecode(state.currentTimecode);
+    setIsEditingTimecode(false);
+  };
+
+  // Atualizar tempTimecode quando o timecode do estado mudar (apenas se não estiver editando)
+  React.useEffect(() => {
+    if (!isEditingTimecode) {
+      setTempTimecode(state.currentTimecode);
+    }
+  }, [state.currentTimecode, isEditingTimecode]);
+
+  // Verificar se está em modo manual
+  React.useEffect(() => {
+    setIsManualMode(state.isManualTimecode || false);
+  }, [state.isManualTimecode]);
 
   const isAdmin = state.currentUser?.role === 'admin';
 
@@ -60,10 +90,10 @@ const Header: React.FC = () => {
                 </div>
                 <div>
                   <h1 className={`text-2xl font-bold ${state.darkMode ? 'text-white' : 'text-gray-900'}`}>
-                    SIS LOGGUER 
+                    Reality Show Logger
                   </h1>
                   <p className={`text-sm ${state.darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Sistema Profissional p/ Reality
+                    Sistema de Logging Profissional
                   </p>
                 </div>
               </div>
@@ -94,18 +124,35 @@ const Header: React.FC = () => {
                 <Clock className={`w-6 h-6 ${state.darkMode ? 'text-cyan-400' : 'text-cyan-600'}`} />
                 
                 {isEditingTimecode ? (
-                  <input
-                    type="text"
-                    value={tempTimecode}
-                    onChange={(e) => setTempTimecode(e.target.value)}
-                    className={`font-mono text-2xl font-bold bg-transparent border-none outline-none w-32 text-center ${state.darkMode ? 'text-cyan-400' : 'text-cyan-600'}`}
-                    placeholder="00:00:00:00"
-                    pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{2}"
-                  />
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="text"
+                      value={tempTimecode}
+                      onChange={(e) => setTempTimecode(e.target.value)}
+                      className={`font-mono text-2xl font-bold bg-transparent border-none outline-none w-32 text-center ${state.darkMode ? 'text-cyan-400' : 'text-cyan-600'}`}
+                      placeholder="00:00:00:00"
+                      pattern="[0-9]{2}:[0-9]{2}:[0-9]{2}:[0-9]{2}"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          handleTimecodeEdit();
+                        } else if (e.key === 'Escape') {
+                          handleCancelEdit();
+                        }
+                      }}
+                      autoFocus
+                    />
+                  </div>
                 ) : (
-                  <span className={`font-mono text-2xl font-bold ${state.darkMode ? 'text-cyan-400' : 'text-cyan-600'}`}>
-                    {state.currentTimecode}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    <span className={`font-mono text-2xl font-bold ${state.darkMode ? 'text-cyan-400' : 'text-cyan-600'}`}>
+                      {state.currentTimecode}
+                    </span>
+                    {isManualMode && (
+                      <span className={`text-xs px-2 py-1 rounded-full ${state.darkMode ? 'bg-yellow-900 text-yellow-300' : 'bg-yellow-100 text-yellow-800'}`}>
+                        MANUAL
+                      </span>
+                    )}
+                  </div>
                 )}
 
                 <div className="flex items-center space-x-2">
@@ -113,19 +160,35 @@ const Header: React.FC = () => {
                     onClick={handleTimecodeEdit}
                     className={`p-2 rounded-lg transition-all duration-200 ${
                       isEditingTimecode 
-                        ? 'bg-green-500 text-white' 
+                        ? 'bg-green-500 text-white hover:bg-green-600' 
                         : state.darkMode 
                         ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
                         : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
                     }`}
-                    title={isEditingTimecode ? 'Salvar' : 'Editar Timecode'}
+                    title={isEditingTimecode ? 'Salvar (Enter)' : 'Editar Timecode'}
                   >
                     {isEditingTimecode ? '✓' : <Edit3 className="w-4 h-4" />}
                   </button>
                   
+                  {isEditingTimecode && (
+                    <button
+                      onClick={handleCancelEdit}
+                      className={`p-2 rounded-lg transition-all duration-200 ${state.darkMode ? 'bg-red-700 text-red-300 hover:bg-red-600' : 'bg-red-200 text-red-600 hover:bg-red-300'}`}
+                      title="Cancelar (Esc)"
+                    >
+                      ✕
+                    </button>
+                  )}
+                  
                   <button
                     onClick={handleSyncTimecode}
-                    className={`p-2 rounded-lg transition-all duration-200 ${state.darkMode ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' : 'bg-gray-200 text-gray-600 hover:bg-gray-300'}`}
+                    className={`p-2 rounded-lg transition-all duration-200 ${
+                      isManualMode 
+                        ? 'bg-yellow-500 text-white hover:bg-yellow-600' 
+                        : state.darkMode 
+                        ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
+                        : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+                    }`}
                     title="Sincronizar com horário do sistema"
                   >
                     <RotateCcw className="w-4 h-4" />
