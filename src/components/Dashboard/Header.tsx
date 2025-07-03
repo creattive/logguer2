@@ -15,7 +15,7 @@ const Header: React.FC = () => {
     try {
       await logout();
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('Erro de logout:', error);
     }
   };
 
@@ -60,10 +60,10 @@ const Header: React.FC = () => {
                 </div>
                 <div>
                   <h1 className={`text-2xl font-bold ${state.darkMode ? 'text-white' : 'text-gray-900'}`}>
-                    Reality Show Logger
+                    SIS LOGGUER 
                   </h1>
                   <p className={`text-sm ${state.darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                    Sistema de Logging Profissional
+                    Sistema Profissional p/ Reality
                   </p>
                 </div>
               </div>
