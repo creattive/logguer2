@@ -16,7 +16,8 @@ import {
   query, 
   orderBy,
   serverTimestamp,
-  updateDoc
+  updateDoc,
+  writeBatch
 } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { User, LogEntry, Participant, Location, ActionCategory, Tag } from '../types';
@@ -122,25 +123,79 @@ export const useFirebase = () => {
     const docRef = await addDoc(logRef, {
       ...entry,
       createdBy: currentUser.uid,
-      createdAt: serverTimestamp()
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
     });
 
     return docRef.id;
   };
 
   const updateLogEntry = async (entryId: string, updates: Partial<LogEntry>) => {
-    if (!currentUser) throw new Error('User not authenticated');
+    if (!currentUser) {
+      throw new Error('Usuário não autenticado');
+    }
 
     try {
+      console.log('🔄 Tentando atualizar entrada:', entryId, updates);
+      
+      // Verificar se o documento existe primeiro
       const entryRef = doc(db, 'logEntries', entryId);
-      await updateDoc(entryRef, {
+      const entrySnap = await getDoc(entryRef);
+      
+      if (!entrySnap.exists()) {
+        throw new Error('Entrada não encontrada');
+      }
+
+      const entryData = entrySnap.data();
+      console.log('📄 Dados atuais da entrada:', entryData);
+
+      // Verificar permissões - admin pode editar tudo, logger pode editar suas próprias entradas
+      const canEdit = currentUser.role === 'admin' || 
+                     currentUser.role === 'logger' || 
+                     entryData.createdBy === currentUser.uid;
+
+      if (!canEdit) {
+        throw new Error('Sem permissão para editar esta entrada');
+      }
+
+      // Preparar dados para atualização
+      const updateData = {
         ...updates,
-        updatedAt: serverTimestamp()
-      });
+        updatedAt: serverTimestamp(),
+        updatedBy: currentUser.uid
+      };
+
+      console.log('💾 Dados para atualização:', updateData);
+
+      // Tentar atualizar usando batch para garantir atomicidade
+      const batch = writeBatch(db);
+      batch.update(entryRef, updateData);
+      await batch.commit();
+
+      console.log('✅ Entrada atualizada com sucesso');
       return true;
-    } catch (error) {
-      console.error('Error updating log entry:', error);
-      throw error;
+
+    } catch (error: any) {
+      console.error('❌ Erro detalhado ao atualizar entrada:', {
+        error: error.message,
+        code: error.code,
+        entryId,
+        updates,
+        currentUser: currentUser?.uid
+      });
+
+      // Mensagens de erro mais específicas
+      if (error.code === 'permission-denied') {
+        throw new Error('Sem permissão para editar. Verifique suas credenciais.');
+      } else if (error.code === 'not-found') {
+        throw new Error('Entrada não encontrada. Pode ter sido removida.');
+      } else if (error.code === 'unavailable') {
+        throw new Error('Serviço temporariamente indisponível. Tente novamente.');
+      } else if (error.message.includes('network')) {
+        throw new Error('Erro de conexão. Verifique sua internet.');
+      } else {
+        throw new Error(`Erro ao salvar: ${error.message}`);
+      }
     }
   };
 
@@ -157,7 +212,8 @@ export const useFirebase = () => {
           dataArray.push({
             id: doc.id,
             ...doc.data(),
-            createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString()
+            createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+            updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || new Date().toISOString()
           } as T);
         });
         setData(dataArray);

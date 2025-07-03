@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Filter, Calendar, User, MapPin, Tag, FileText, Download, Clock, Edit, Save, X } from 'lucide-react';
+import { Search, Filter, Calendar, User, MapPin, Tag, FileText, Download, Clock, Edit, Save, X, AlertCircle } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
@@ -13,6 +13,7 @@ const ActivityFeed: React.FC = () => {
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
   const [editNotes, setEditNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const filteredEntries = state.logEntries.filter(entry => {
     const matchesSearch = entry.notes.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -72,22 +73,35 @@ const ActivityFeed: React.FC = () => {
   const handleEditEntry = (entryId: string, currentNotes: string) => {
     setEditingEntry(entryId);
     setEditNotes(currentNotes);
+    setError(null);
   };
 
   const handleSaveEdit = async (entryId: string) => {
     if (saving) return;
     
+    const trimmedNotes = editNotes.trim();
+    if (!trimmedNotes) {
+      setError('As notas não podem estar vazias');
+      return;
+    }
+    
     setSaving(true);
+    setError(null);
+    
     try {
+      console.log('🔄 Iniciando atualização da entrada:', entryId);
+      
       await updateLogEntry(entryId, {
-        notes: editNotes.trim()
+        notes: trimmedNotes
       });
       
+      console.log('✅ Entrada atualizada com sucesso');
       setEditingEntry(null);
       setEditNotes('');
-    } catch (error) {
-      console.error('Error updating entry:', error);
-      alert('Erro ao atualizar entrada. Verifique sua conexão e tente novamente.');
+      
+    } catch (error: any) {
+      console.error('❌ Erro ao atualizar entrada:', error);
+      setError(error.message || 'Erro desconhecido ao salvar');
     } finally {
       setSaving(false);
     }
@@ -96,6 +110,7 @@ const ActivityFeed: React.FC = () => {
   const handleCancelEdit = () => {
     setEditingEntry(null);
     setEditNotes('');
+    setError(null);
   };
 
   const isAdmin = state.currentUser?.role === 'admin';
@@ -255,7 +270,17 @@ const ActivityFeed: React.FC = () => {
                       } focus:ring-2 focus:ring-cyan-500/20`}
                       rows={3}
                       disabled={saving}
+                      placeholder="Digite suas alterações..."
                     />
+                    
+                    {/* Error Message */}
+                    {error && (
+                      <div className="flex items-center space-x-2 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                        <AlertCircle className="w-4 h-4 text-red-500" />
+                        <span className="text-red-500 text-sm">{error}</span>
+                      </div>
+                    )}
+                    
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => handleSaveEdit(entry.id)}
