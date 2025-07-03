@@ -172,9 +172,9 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
         <div className="mt-8 text-center">
           <div className="bg-cyan-400/20 backdrop-blur-sm rounded-2xl p-4 border border-cyan-400/30">
             <p className="text-cyan-100 text-sm font-medium">
-              NOME DO REALITY QUE<br />
-              CONTRATOU O SISTEMA<br />
-              CONFIGURÁVEL NA<br />
+              A FAZENDA<br />
+              REALITY DA REDE RECORD<br />
+              2025<br />
               ÁREA ADMINISTRATIVA
             </p>
           </div>
