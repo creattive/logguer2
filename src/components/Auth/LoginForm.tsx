@@ -70,7 +70,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
           <div className="mt-6 text-center">
             <p className="text-white/80 text-sm">USO AUTORIZADO POR</p>
             <p className="text-white font-bold text-lg tracking-wider">
-              BIG BROTHER BRASIL
+              INDEVICE PRODUÇÕES E ENTRETENIMENTO
             </p>
           </div>
         </div>
