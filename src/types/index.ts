@@ -66,6 +66,8 @@ export interface AppState {
   isRecording: boolean;
   currentTimecode: string;
   isManualTimecode: boolean;
+  manualTimecodeStart: number | null; // timestamp quando o modo manual foi ativado
+  manualTimecodeBase: string | null; // timecode base definido pelo usuário
   selectedParticipants: string[];
   selectedLocation: string;
   selectedAction: string;

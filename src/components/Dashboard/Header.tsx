@@ -10,7 +10,6 @@ const Header: React.FC = () => {
   const [isEditingTimecode, setIsEditingTimecode] = useState(false);
   const [tempTimecode, setTempTimecode] = useState(state.currentTimecode);
   const [showAdminPanel, setShowAdminPanel] = useState(false);
-  const [isManualMode, setIsManualMode] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -27,9 +26,15 @@ const Header: React.FC = () => {
       
       if (timecodeRegex.test(tempTimecode)) {
         // Salvar o timecode editado e ativar modo manual
-        dispatch({ type: 'SET_TIMECODE', payload: tempTimecode });
-        dispatch({ type: 'SET_MANUAL_TIMECODE', payload: true });
-        setIsManualMode(true);
+        const now = Date.now();
+        dispatch({ 
+          type: 'SET_MANUAL_TIMECODE', 
+          payload: { 
+            isManual: true, 
+            startTime: now, 
+            baseTimecode: tempTimecode 
+          } 
+        });
         setIsEditingTimecode(false);
       } else {
         alert('Formato inválido! Use HH:MM:SS:FF (ex: 12:34:56:15)');
@@ -42,18 +47,15 @@ const Header: React.FC = () => {
   };
 
   const handleSyncTimecode = () => {
-    // Sincronizar com o horário atual do sistema e desativar modo manual
-    const now = new Date();
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    const frames = String(Math.floor(now.getMilliseconds() / 33.33)).padStart(2, '0'); // 30fps
-    
-    const systemTimecode = `${hours}:${minutes}:${seconds}:${frames}`;
-    dispatch({ type: 'SET_TIMECODE', payload: systemTimecode });
-    dispatch({ type: 'SET_MANUAL_TIMECODE', payload: false });
-    setIsManualMode(false);
-    setTempTimecode(systemTimecode);
+    // Voltar para modo automático (horário do sistema)
+    dispatch({ 
+      type: 'SET_MANUAL_TIMECODE', 
+      payload: { 
+        isManual: false, 
+        startTime: undefined, 
+        baseTimecode: undefined 
+      } 
+    });
     setIsEditingTimecode(false);
   };
 
@@ -68,11 +70,6 @@ const Header: React.FC = () => {
       setTempTimecode(state.currentTimecode);
     }
   }, [state.currentTimecode, isEditingTimecode]);
-
-  // Verificar se está em modo manual
-  React.useEffect(() => {
-    setIsManualMode(state.isManualTimecode || false);
-  }, [state.isManualTimecode]);
 
   const isAdmin = state.currentUser?.role === 'admin';
 
@@ -147,8 +144,8 @@ const Header: React.FC = () => {
                     <span className={`font-mono text-2xl font-bold ${state.darkMode ? 'text-cyan-400' : 'text-cyan-600'}`}>
                       {state.currentTimecode}
                     </span>
-                    {isManualMode && (
-                      <span className={`text-xs px-2 py-1 rounded-full ${state.darkMode ? 'bg-yellow-900 text-yellow-300' : 'bg-yellow-100 text-yellow-800'}`}>
+                    {state.isManualTimecode && (
+                      <span className={`text-xs px-2 py-1 rounded-full font-bold ${state.darkMode ? 'bg-yellow-900 text-yellow-300' : 'bg-yellow-100 text-yellow-800'}`}>
                         MANUAL
                       </span>
                     )}
@@ -183,7 +180,7 @@ const Header: React.FC = () => {
                   <button
                     onClick={handleSyncTimecode}
                     className={`p-2 rounded-lg transition-all duration-200 ${
-                      isManualMode 
+                      state.isManualTimecode 
                         ? 'bg-yellow-500 text-white hover:bg-yellow-600' 
                         : state.darkMode 
                         ? 'bg-gray-700 text-gray-300 hover:bg-gray-600' 
