@@ -6,6 +6,7 @@ interface AppContextType {
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
   addLogEntry: (entry: Omit<LogEntry, 'id' | 'createdAt' | 'createdBy'>) => Promise<void>;
+  updateLogEntry: (entryId: string, updates: Partial<LogEntry>) => Promise<void>;
 }
 
 type AppAction = 
@@ -105,7 +106,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
-  const { currentUser, addLogEntry: firebaseAddLogEntry, useRealtimeData } = useFirebase();
+  const { currentUser, addLogEntry: firebaseAddLogEntry, updateLogEntry: firebaseUpdateLogEntry, useRealtimeData } = useFirebase();
 
   const [participants] = useRealtimeData<Participant>('participants');
   const [locations] = useRealtimeData<Location>('locations');
@@ -173,8 +174,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await firebaseAddLogEntry(entry);
   };
 
+  const updateLogEntry = async (entryId: string, updates: Partial<LogEntry>) => {
+    await firebaseUpdateLogEntry(entryId, updates);
+  };
+
   return (
-    <AppContext.Provider value={{ state, dispatch, addLogEntry }}>
+    <AppContext.Provider value={{ state, dispatch, addLogEntry, updateLogEntry }}>
       {children}
     </AppContext.Provider>
   );

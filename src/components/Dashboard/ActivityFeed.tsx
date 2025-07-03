@@ -1,19 +1,18 @@
 import React, { useState } from 'react';
 import { Search, Filter, Calendar, User, MapPin, Tag, FileText, Download, Clock, Edit, Save, X } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../../config/firebase';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 const ActivityFeed: React.FC = () => {
-  const { state } = useApp();
+  const { state, updateLogEntry } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterParticipant, setFilterParticipant] = useState('');
   const [filterLocation, setFilterLocation] = useState('');
   const [filterDateRange, setFilterDateRange] = useState({ start: '', end: '' });
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
   const [editNotes, setEditNotes] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const filteredEntries = state.logEntries.filter(entry => {
     const matchesSearch = entry.notes.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -76,18 +75,21 @@ const ActivityFeed: React.FC = () => {
   };
 
   const handleSaveEdit = async (entryId: string) => {
+    if (saving) return;
+    
+    setSaving(true);
     try {
-      const entryRef = doc(db, 'logEntries', entryId);
-      await updateDoc(entryRef, {
-        notes: editNotes,
-        updatedAt: new Date()
+      await updateLogEntry(entryId, {
+        notes: editNotes.trim()
       });
       
       setEditingEntry(null);
       setEditNotes('');
     } catch (error) {
       console.error('Error updating entry:', error);
-      alert('Erro ao atualizar entrada. Tente novamente.');
+      alert('Erro ao atualizar entrada. Verifique sua conexão e tente novamente.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -198,11 +200,12 @@ const ActivityFeed: React.FC = () => {
                     {canEdit && (
                       <button
                         onClick={() => handleEditEntry(entry.id, entry.notes)}
+                        disabled={editingEntry === entry.id && saving}
                         className={`p-1 rounded transition-all duration-200 ${
                           state.darkMode 
                             ? 'text-gray-400 hover:text-white hover:bg-gray-700' 
                             : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
-                        }`}
+                        } disabled:opacity-50`}
                         title="Editar entrada"
                       >
                         <Edit className="w-4 h-4" />
@@ -251,18 +254,30 @@ const ActivityFeed: React.FC = () => {
                           : 'bg-white border-gray-300 text-gray-900 focus:border-cyan-500'
                       } focus:ring-2 focus:ring-cyan-500/20`}
                       rows={3}
+                      disabled={saving}
                     />
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => handleSaveEdit(entry.id)}
-                        className="flex items-center space-x-1 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all duration-200"
+                        disabled={saving || !editNotes.trim()}
+                        className="flex items-center space-x-1 px-3 py-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        <Save className="w-4 h-4" />
-                        <span>Salvar</span>
+                        {saving ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                            <span>Salvando...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            <span>Salvar</span>
+                          </>
+                        )}
                       </button>
                       <button
                         onClick={handleCancelEdit}
-                        className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg transition-all duration-200 ${
+                        disabled={saving}
+                        className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg transition-all duration-200 disabled:opacity-50 ${
                           state.darkMode 
                             ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                             : 'bg-gray-200 text-gray-700 hover:bg-gray-300'

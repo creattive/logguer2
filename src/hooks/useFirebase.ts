@@ -15,7 +15,8 @@ import {
   onSnapshot, 
   query, 
   orderBy,
-  serverTimestamp 
+  serverTimestamp,
+  updateDoc
 } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { User, LogEntry, Participant, Location, ActionCategory, Tag } from '../types';
@@ -127,6 +128,22 @@ export const useFirebase = () => {
     return docRef.id;
   };
 
+  const updateLogEntry = async (entryId: string, updates: Partial<LogEntry>) => {
+    if (!currentUser) throw new Error('User not authenticated');
+
+    try {
+      const entryRef = doc(db, 'logEntries', entryId);
+      await updateDoc(entryRef, {
+        ...updates,
+        updatedAt: serverTimestamp()
+      });
+      return true;
+    } catch (error) {
+      console.error('Error updating log entry:', error);
+      throw error;
+    }
+  };
+
   const useRealtimeData = <T>(collectionName: string): [T[], boolean] => {
     const [data, setData] = useState<T[]>([]);
     const [loading, setLoading] = useState(true);
@@ -163,6 +180,7 @@ export const useFirebase = () => {
     register,
     logout,
     addLogEntry,
+    updateLogEntry,
     useRealtimeData
   };
 };
