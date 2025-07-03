@@ -18,6 +18,7 @@ type AppAction =
   | { type: 'TOGGLE_DARK_MODE' }
   | { type: 'SET_RECORDING'; payload: boolean }
   | { type: 'SET_TIMECODE'; payload: string }
+  | { type: 'SET_MANUAL_TIMECODE'; payload: boolean }
   | { type: 'SET_SELECTED_PARTICIPANTS'; payload: string[] }
   | { type: 'SET_SELECTED_LOCATION'; payload: string }
   | { type: 'SET_SELECTED_ACTION'; payload: string }
@@ -33,6 +34,7 @@ const initialState: AppState = {
   darkMode: localStorage.getItem('darkMode') === 'true',
   isRecording: false,
   currentTimecode: '00:00:00:00',
+  isManualTimecode: false,
   selectedParticipants: [],
   selectedLocation: '',
   selectedAction: '',
@@ -61,6 +63,8 @@ const appReducer = (state: AppState, action: AppAction): AppState => {
       return { ...state, isRecording: action.payload };
     case 'SET_TIMECODE':
       return { ...state, currentTimecode: action.payload };
+    case 'SET_MANUAL_TIMECODE':
+      return { ...state, isManualTimecode: action.payload };
     case 'SET_SELECTED_PARTICIPANTS':
       return { ...state, selectedParticipants: action.payload };
     case 'SET_SELECTED_LOCATION':
@@ -110,8 +114,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     dispatch({ type: 'SET_LOG_ENTRIES', payload: logEntries });
   }, [logEntries]);
 
-  // Timecode contínuo baseado no horário do sistema
+  // Timecode contínuo baseado no horário do sistema (apenas se não estiver em modo manual)
   useEffect(() => {
+    if (state.isManualTimecode) {
+      return; // Não atualizar automaticamente se estiver em modo manual
+    }
+
     const updateTimecode = () => {
       const now = new Date();
       const hours = String(now.getHours()).padStart(2, '0');
@@ -130,7 +138,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const interval = setInterval(updateTimecode, 33);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [state.isManualTimecode]);
 
   const addLogEntry = async (entry: Omit<LogEntry, 'id' | 'createdAt' | 'createdBy'>) => {
     await firebaseAddLogEntry(entry);
