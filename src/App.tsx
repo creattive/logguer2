@@ -7,6 +7,10 @@ import FirebaseDebug from './components/Debug/FirebaseDebug';
 import { doc, setDoc, collection, addDoc, serverTimestamp, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from './config/firebase';
 
+
+
+
+
 // Clean and initialize sample data with only 5 items each
 const initializeSampleData = async () => {
   try {

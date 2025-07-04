@@ -157,7 +157,7 @@ export const useFirebase = () => {
           console.log('  -', doc.id);
         });
         
-        throw new Error(`Entrada não encontrada. ID: ${entryId} não existe na coleção.`);
+        throw new Error(`Entrada não encontrada no banco de dados`);
       }
 
       const entryData = entrySnap.data();

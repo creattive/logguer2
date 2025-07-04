@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { Plus, Edit, Trash2, Users, MapPin, Tag, Settings, X, Save, UserPlus, Eye, EyeOff } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
-import { doc, setDoc, deleteDoc, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc, updateDoc, addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { db, auth } from '../../config/firebase';
-import { v4 as uuidv4 } from 'uuid';
 
 interface AdminPanelProps {
   onClose: () => void;
@@ -28,26 +27,38 @@ const AddEntityModal: React.FC<AddEntityModalProps> = ({ type, isOpen, onClose, 
     email: '',
     password: '',
     displayName: '',
-    role: 'logger'
+    role: 'logger',
+    isActive: true
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSave(formData);
-    setFormData({
-      name: '',
-      description: '',
-      color: '#3B82F6',
-      bio: '',
-      email: '',
-      password: '',
-      displayName: '',
-      role: 'logger'
-    });
-    onClose();
+    setSaving(true);
+    
+    try {
+      await onSave(formData);
+      setFormData({
+        name: '',
+        description: '',
+        color: '#3B82F6',
+        bio: '',
+        email: '',
+        password: '',
+        displayName: '',
+        role: 'logger',
+        isActive: true
+      });
+      onClose();
+    } catch (error) {
+      console.error('Error saving:', error);
+      alert('Erro ao salvar. Tente novamente.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const getTitle = () => {
@@ -238,19 +249,28 @@ const AddEntityModal: React.FC<AddEntityModalProps> = ({ type, isOpen, onClose, 
             <button
               type="button"
               onClick={onClose}
+              disabled={saving}
               className={`flex-1 px-4 py-2 rounded-lg border transition-all duration-200 ${
                 state.darkMode 
                   ? 'border-gray-600 text-gray-300 hover:bg-gray-700'
                   : 'border-gray-300 text-gray-700 hover:bg-gray-50'
-              }`}
+              } disabled:opacity-50`}
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-lg hover:from-cyan-600 hover:to-blue-700 transition-all duration-200"
+              disabled={saving}
+              className="flex-1 px-4 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 text-white rounded-lg hover:from-cyan-600 hover:to-blue-700 transition-all duration-200 disabled:opacity-50 flex items-center justify-center space-x-2"
             >
-              {editData ? 'Atualizar' : 'Salvar'}
+              {saving ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span>Salvando...</span>
+                </>
+              ) : (
+                <span>{editData ? 'Atualizar' : 'Salvar'}</span>
+              )}
             </button>
           </div>
         </form>
@@ -267,6 +287,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
 
   const handleAddEntity = async (type: string, data: any) => {
     try {
+      console.log('🔄 Salvando:', type, data);
+
       if (type === 'user') {
         // Criar usuário no Firebase Auth
         const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
@@ -277,48 +299,55 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
           email: data.email,
           displayName: data.displayName,
           role: data.role,
-          createdAt: new Date(),
-          lastActive: new Date()
+          createdAt: serverTimestamp(),
+          lastActive: serverTimestamp()
         });
+        
+        console.log('✅ Usuário criado com sucesso');
       } else {
-        const id = editData?.id || uuidv4();
-        const docRef = doc(db, `${type}s`, id);
+        // Para outros tipos, usar a coleção correta
+        const collectionName = type === 'actionCategory' ? 'actionCategories' : `${type}s`;
         
         if (editData) {
           // Atualizar documento existente
+          const docRef = doc(db, collectionName, editData.id);
           await updateDoc(docRef, {
             ...data,
-            updatedAt: new Date()
+            updatedAt: serverTimestamp()
           });
+          console.log('✅ Item atualizado com sucesso');
         } else {
           // Criar novo documento
-          await setDoc(docRef, {
+          const docRef = await addDoc(collection(db, collectionName), {
             ...data,
-            id,
             isActive: true,
-            createdAt: new Date()
+            createdAt: serverTimestamp()
           });
+          console.log('✅ Item criado com sucesso, ID:', docRef.id);
         }
       }
-    } catch (error) {
-      console.error(`Error ${editData ? 'updating' : 'adding'} ${type}:`, error);
-      alert(`Erro ao ${editData ? 'atualizar' : 'adicionar'} ${type}. Tente novamente.`);
+    } catch (error: any) {
+      console.error(`❌ Error ${editData ? 'updating' : 'adding'} ${type}:`, error);
+      throw error; // Re-throw para o modal tratar
     }
   };
 
   const handleDeleteEntity = async (type: string, id: string) => {
     if (window.confirm('Tem certeza que deseja excluir este item?')) {
       try {
-        const docRef = doc(db, `${type}s`, id);
+        const collectionName = type === 'actionCategory' ? 'actionCategories' : `${type}s`;
+        const docRef = doc(db, collectionName, id);
         await deleteDoc(docRef);
+        console.log('✅ Item excluído com sucesso');
       } catch (error) {
-        console.error(`Error deleting ${type}:`, error);
+        console.error(`❌ Error deleting ${type}:`, error);
         alert(`Erro ao excluir ${type}. Tente novamente.`);
       }
     }
   };
 
   const handleEdit = (type: string, data: any) => {
+    console.log('🔧 Editando:', type, data);
     setEditData(data);
     setModalType(type as any);
   };
