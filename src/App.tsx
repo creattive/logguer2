@@ -4,66 +4,92 @@ import { useFirebase } from './hooks/useFirebase';
 import LoginForm from './components/Auth/LoginForm';
 import Dashboard from './components/Dashboard/Dashboard';
 import FirebaseDebug from './components/Debug/FirebaseDebug';
-import { doc, setDoc, collection } from 'firebase/firestore';
+import { doc, setDoc, collection, addDoc, serverTimestamp, getDocs, deleteDoc } from 'firebase/firestore';
 import { db } from './config/firebase';
 
-// Initialize sample data
+// Clean and initialize sample data with only 5 items each
 const initializeSampleData = async () => {
   try {
-    // Exeplos de Participantes demo
+    console.log('🧹 Limpando dados antigos...');
+    
+    // Clean existing data
+    const collections = ['participants', 'locations', 'actionCategories', 'tags'];
+    
+    for (const collectionName of collections) {
+      const snapshot = await getDocs(collection(db, collectionName));
+      const deletePromises = snapshot.docs.map(doc => deleteDoc(doc.ref));
+      await Promise.all(deletePromises);
+      console.log(`✅ Limpou ${snapshot.size} itens de ${collectionName}`);
+    }
+
+    // Sample Participants (only 5)
     const participants = [
-      { id: 'p1', name: 'Wagner Baiano', bio: 'Fitness enthusiast and team leader', isActive: true, createdAt: new Date() },
-      { id: 'p2', name: 'André Amado', bio: 'Artist and creative strategist', isActive: true, createdAt: new Date() },
-      { id: 'p3', name: 'Daiane Santos', bio: 'Chef and food innovator', isActive: true, createdAt: new Date() },
-      { id: 'p4', name: 'Reinaldo Alves', bio: 'Adventure seeker and motivator', isActive: true, createdAt: new Date() }
+      { name: 'Alex Johnson', bio: 'Fitness enthusiast and team leader', isActive: true },
+      { name: 'Sarah Wilson', bio: 'Artist and creative strategist', isActive: true },
+      { name: 'Mike Chen', bio: 'Chef and food innovator', isActive: true },
+      { name: 'Emma Davis', bio: 'Adventure seeker and motivator', isActive: true },
+      { name: 'Lucas Silva', bio: 'Tech expert and problem solver', isActive: true }
     ];
 
-    // Localizações Demo
+    // Sample Locations (only 5)
     const locations = [
-      { id: 'l1', name: 'Sala', description: 'Central hub for daily activities', color: '#3B82F6', createdAt: new Date() },
-      { id: 'l2', name: 'Cozinha', description: 'Cooking and meal prep area', color: '#EF4444', createdAt: new Date() },
-      { id: 'l3', name: 'Academia', description: 'Outdoor activities and challenges', color: '#10B981', createdAt: new Date() },
-      { id: 'l4', name: 'Pscina', description: 'Private interview space', color: '#8B5CF6', createdAt: new Date() }
+      { name: 'Sala Principal', description: 'Central hub for daily activities', color: '#3B82F6' },
+      { name: 'Cozinha', description: 'Cooking and meal prep area', color: '#EF4444' },
+      { name: 'Jardim', description: 'Outdoor activities and challenges', color: '#10B981' },
+      { name: 'Confessional', description: 'Private interview space', color: '#8B5CF6' },
+      { name: 'Quarto', description: 'Rest and private conversations', color: '#F59E0B' }
     ];
 
-    // Categorai de ações
+    // Sample Action Categories (only 5)
     const actionCategories = [
-      { id: 'a1', name: 'Falando de...', description: 'Competition or task-based activities', color: '#F59E0B', createdAt: new Date() },
-      { id: 'a2', name: 'Conflito', description: 'Disagreements or tensions', color: '#DC2626', createdAt: new Date() },
-      { id: 'a3', name: 'Alianças', description: 'Strategic partnerships', color: '#059669', createdAt: new Date() },
-      { id: 'a4', name: 'Briga', description: 'Private thoughts and strategies', color: '#7C3AED', createdAt: new Date() },
-      { id: 'a5', name: 'Casal', description: 'Casual interactions and bonding', color: '#2563EB', createdAt: new Date() }
+      { name: 'Desafio', description: 'Competition or task-based activities', color: '#F59E0B' },
+      { name: 'Conflito', description: 'Disagreements or tensions', color: '#DC2626' },
+      { name: 'Aliança', description: 'Strategic partnerships', color: '#059669' },
+      { name: 'Confissão', description: 'Private thoughts and strategies', color: '#7C3AED' },
+      { name: 'Social', description: 'Casual interactions and bonding', color: '#2563EB' }
     ];
 
-    // Sample Tags
+    // Sample Tags (only 5)
     const tags = [
-      { id: 't1', name: 'Drama', color: '#DC2626', createdAt: new Date() },
-      { id: 't2', name: 'Take - Zoom In', color: '#059669', createdAt: new Date() },
-      { id: 't3', name: 'Take Zoom Out', color: '#7C3AED', createdAt: new Date() },
-      { id: 't4', name: 'Dançando', color: '#F59E0B', createdAt: new Date() },
-      { id: 't5', name: 'Importante', color: '#DC2626', createdAt: new Date() }
+      { name: 'Drama', color: '#DC2626' },
+      { name: 'Estratégia', color: '#059669' },
+      { name: 'Emocional', color: '#7C3AED' },
+      { name: 'Engraçado', color: '#F59E0B' },
+      { name: 'Importante', color: '#DC2626' }
     ];
 
-    // Set sample data in Firestore
+    // Add new clean data
     for (const participant of participants) {
-      await setDoc(doc(db, 'participants', participant.id), participant);
+      await addDoc(collection(db, 'participants'), {
+        ...participant,
+        createdAt: serverTimestamp()
+      });
     }
     
     for (const location of locations) {
-      await setDoc(doc(db, 'locations', location.id), location);
+      await addDoc(collection(db, 'locations'), {
+        ...location,
+        createdAt: serverTimestamp()
+      });
     }
     
     for (const actionCategory of actionCategories) {
-      await setDoc(doc(db, 'actionCategories', actionCategory.id), actionCategory);
+      await addDoc(collection(db, 'actionCategories'), {
+        ...actionCategory,
+        createdAt: serverTimestamp()
+      });
     }
     
     for (const tag of tags) {
-      await setDoc(doc(db, 'tags', tag.id), tag);
+      await addDoc(collection(db, 'tags'), {
+        ...tag,
+        createdAt: serverTimestamp()
+      });
     }
 
-    console.log('Dados de amostra inicializados com sucesso');
+    console.log('✅ Dados de amostra limpos e inicializados com sucesso (5 itens cada)');
   } catch (error) {
-    console.error('Erro ao inicializar dados de amostra:', error);
+    console.error('❌ Error initializing sample data:', error);
   }
 };
 
@@ -98,7 +124,7 @@ const AppContent: React.FC = () => {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 flex items-center justify-center">
         <div className="text-center">
           <div className="w-16 h-16 border-4 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-white text-lg">Carregando SIS Logguer...</p>
+          <p className="text-white text-lg">Loading Reality Show Logger...</p>
         </div>
       </div>
     );

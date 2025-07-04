@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Search, Filter, Calendar, User, MapPin, Tag, FileText, Download, Clock, Edit, Save, X, AlertCircle } from 'lucide-react';
+import { Search, Filter, Calendar, User, MapPin, Tag, FileText, Download, Clock, Edit, Save, X, AlertCircle, Trash2, CheckSquare, Square } from 'lucide-react';
 import { useApp } from '../../contexts/AppContext';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 
 const ActivityFeed: React.FC = () => {
-  const { state, updateLogEntry } = useApp();
+  const { state, updateLogEntry, deleteLogEntry, deleteAllLogEntries } = useApp();
   const [searchTerm, setSearchTerm] = useState('');
   const [filterParticipant, setFilterParticipant] = useState('');
   const [filterLocation, setFilterLocation] = useState('');
@@ -13,7 +13,10 @@ const ActivityFeed: React.FC = () => {
   const [editingEntry, setEditingEntry] = useState<string | null>(null);
   const [editNotes, setEditNotes] = useState('');
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedEntries, setSelectedEntries] = useState<string[]>([]);
+  const [selectAll, setSelectAll] = useState(false);
 
   const filteredEntries = state.logEntries.filter(entry => {
     const matchesSearch = entry.notes.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -71,6 +74,7 @@ const ActivityFeed: React.FC = () => {
   };
 
   const handleEditEntry = (entryId: string, currentNotes: string) => {
+    console.log('🔧 Iniciando edição da entrada:', entryId);
     setEditingEntry(entryId);
     setEditNotes(currentNotes);
     setError(null);
@@ -90,6 +94,7 @@ const ActivityFeed: React.FC = () => {
     
     try {
       console.log('🔄 Iniciando atualização da entrada:', entryId);
+      console.log('📝 Novas notas:', trimmedNotes);
       
       await updateLogEntry(entryId, {
         notes: trimmedNotes
@@ -113,6 +118,71 @@ const ActivityFeed: React.FC = () => {
     setError(null);
   };
 
+  const handleDeleteEntry = async (entryId: string) => {
+    if (!window.confirm('Tem certeza que deseja excluir esta entrada?')) {
+      return;
+    }
+
+    setDeleting(entryId);
+    try {
+      await deleteLogEntry(entryId);
+      console.log('✅ Entrada excluída com sucesso');
+    } catch (error: any) {
+      console.error('❌ Erro ao excluir entrada:', error);
+      alert(`Erro ao excluir: ${error.message}`);
+    } finally {
+      setDeleting(null);
+    }
+  };
+
+  const handleSelectEntry = (entryId: string) => {
+    setSelectedEntries(prev => 
+      prev.includes(entryId) 
+        ? prev.filter(id => id !== entryId)
+        : [...prev, entryId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedEntries([]);
+    } else {
+      setSelectedEntries(filteredEntries.map(entry => entry.id));
+    }
+    setSelectAll(!selectAll);
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedEntries.length === 0) return;
+
+    const confirmMessage = selectedEntries.length === filteredEntries.length 
+      ? `Tem certeza que deseja excluir TODAS as ${selectedEntries.length} entradas?`
+      : `Tem certeza que deseja excluir ${selectedEntries.length} entradas selecionadas?`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      if (selectedEntries.length === state.logEntries.length) {
+        // Se selecionou todas, usar função de exclusão em lote
+        await deleteAllLogEntries();
+      } else {
+        // Excluir individualmente
+        for (const entryId of selectedEntries) {
+          await deleteLogEntry(entryId);
+        }
+      }
+      
+      setSelectedEntries([]);
+      setSelectAll(false);
+      console.log(`✅ ${selectedEntries.length} entradas excluídas com sucesso`);
+    } catch (error: any) {
+      console.error('❌ Erro ao excluir entradas:', error);
+      alert(`Erro ao excluir entradas: ${error.message}`);
+    }
+  };
+
   const isAdmin = state.currentUser?.role === 'admin';
   const canEdit = isAdmin || state.currentUser?.role === 'logger';
 
@@ -124,13 +194,24 @@ const ActivityFeed: React.FC = () => {
           <h2 className={`text-xl font-bold ${state.darkMode ? 'text-white' : 'text-gray-900'}`}>
             Feed de Atividades
           </h2>
-          <button
-            onClick={exportToPDF}
-            className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200"
-          >
-            <Download className="w-4 h-4" />
-            <span>Exportar</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            {selectedEntries.length > 0 && (
+              <button
+                onClick={handleDeleteSelected}
+                className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all duration-200"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Excluir ({selectedEntries.length})</span>
+              </button>
+            )}
+            <button
+              onClick={exportToPDF}
+              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200"
+            >
+              <Download className="w-4 h-4" />
+              <span>Exportar</span>
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
@@ -167,6 +248,25 @@ const ActivityFeed: React.FC = () => {
             ))}
           </select>
         </div>
+
+        {/* Select All */}
+        {filteredEntries.length > 0 && (
+          <div className="mt-4 flex items-center space-x-2">
+            <button
+              onClick={handleSelectAll}
+              className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg transition-all duration-200 ${
+                state.darkMode 
+                  ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {selectAll ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
+              <span className="text-sm">
+                {selectAll ? 'Desmarcar todas' : 'Selecionar todas'} ({filteredEntries.length})
+              </span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Activity List */}
@@ -183,7 +283,9 @@ const ActivityFeed: React.FC = () => {
               <div
                 key={entry.id}
                 className={`p-4 rounded-lg border transition-all duration-200 hover:shadow-md ${
-                  state.darkMode 
+                  selectedEntries.includes(entry.id)
+                    ? 'border-cyan-500 bg-cyan-500/10'
+                    : state.darkMode 
                     ? 'bg-gray-800/50 border-gray-700 hover:border-gray-600'
                     : 'bg-gray-50 border-gray-200 hover:border-gray-300'
                 }`}
@@ -191,6 +293,21 @@ const ActivityFeed: React.FC = () => {
                 {/* Entry Header */}
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => handleSelectEntry(entry.id)}
+                      className={`p-1 rounded transition-all duration-200 ${
+                        selectedEntries.includes(entry.id)
+                          ? 'text-cyan-500'
+                          : state.darkMode 
+                          ? 'text-gray-400 hover:text-white' 
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      {selectedEntries.includes(entry.id) ? 
+                        <CheckSquare className="w-4 h-4" /> : 
+                        <Square className="w-4 h-4" />
+                      }
+                    </button>
                     <div className={`flex items-center space-x-2 text-sm ${state.darkMode ? 'text-cyan-400' : 'text-cyan-600'}`}>
                       <Clock className="w-4 h-4" />
                       <span className="font-mono font-semibold">{entry.timecode}</span>
@@ -213,18 +330,38 @@ const ActivityFeed: React.FC = () => {
                       ) : null;
                     })}
                     {canEdit && (
-                      <button
-                        onClick={() => handleEditEntry(entry.id, entry.notes)}
-                        disabled={editingEntry === entry.id && saving}
-                        className={`p-1 rounded transition-all duration-200 ${
-                          state.darkMode 
-                            ? 'text-gray-400 hover:text-white hover:bg-gray-700' 
-                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
-                        } disabled:opacity-50`}
-                        title="Editar entrada"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
+                      <>
+                        <button
+                          onClick={() => handleEditEntry(entry.id, entry.notes)}
+                          disabled={editingEntry === entry.id && saving}
+                          className={`p-1 rounded transition-all duration-200 ${
+                            state.darkMode 
+                              ? 'text-gray-400 hover:text-white hover:bg-gray-700' 
+                              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-200'
+                          } disabled:opacity-50`}
+                          title="Editar entrada"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteEntry(entry.id)}
+                          disabled={deleting === entry.id}
+                          className={`p-1 rounded transition-all duration-200 ${
+                            deleting === entry.id
+                              ? 'text-red-400 opacity-50'
+                              : state.darkMode 
+                              ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700' 
+                              : 'text-gray-500 hover:text-red-600 hover:bg-gray-200'
+                          } disabled:opacity-50`}
+                          title="Excluir entrada"
+                        >
+                          {deleting === entry.id ? (
+                            <div className="w-4 h-4 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin"></div>
+                          ) : (
+                            <Trash2 className="w-4 h-4" />
+                          )}
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>

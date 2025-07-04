@@ -17,7 +17,9 @@ import {
   orderBy,
   serverTimestamp,
   updateDoc,
-  writeBatch
+  deleteDoc,
+  writeBatch,
+  getDocs
 } from 'firebase/firestore';
 import { auth, db } from '../config/firebase';
 import { User, LogEntry, Participant, Location, ActionCategory, Tag } from '../types';
@@ -127,6 +129,7 @@ export const useFirebase = () => {
       updatedAt: serverTimestamp()
     });
 
+    console.log('✅ Nova entrada criada com ID:', docRef.id);
     return docRef.id;
   };
 
@@ -138,18 +141,29 @@ export const useFirebase = () => {
     try {
       console.log('🔄 Tentando atualizar entrada:', entryId, updates);
       
-      // Verificar se o documento existe primeiro
+      // Usar o ID exato do documento
       const entryRef = doc(db, 'logEntries', entryId);
       const entrySnap = await getDoc(entryRef);
-      
+
       if (!entrySnap.exists()) {
-        throw new Error('Entrada não encontrada');
+        console.error('❌ Documento não encontrado:', entryId);
+        
+        // Listar todos os documentos para debug
+        const logEntriesRef = collection(db, 'logEntries');
+        const snapshot = await getDocs(logEntriesRef);
+        
+        console.log('📋 IDs disponíveis na coleção:');
+        snapshot.forEach((doc) => {
+          console.log('  -', doc.id);
+        });
+        
+        throw new Error(`Entrada não encontrada. ID: ${entryId} não existe na coleção.`);
       }
 
       const entryData = entrySnap.data();
-      console.log('📄 Dados atuais da entrada:', entryData);
+      console.log('🔍 Dados da entrada encontrada:', entryData);
 
-      // Verificar permissões - admin pode editar tudo, logger pode editar suas próprias entradas
+      // Verificar permissões
       const canEdit = currentUser.role === 'admin' || 
                      currentUser.role === 'logger' || 
                      entryData.createdBy === currentUser.uid;
@@ -165,12 +179,10 @@ export const useFirebase = () => {
         updatedBy: currentUser.uid
       };
 
-      console.log('💾 Dados para atualização:', updateData);
+      console.log('💾 Atualizando com dados:', updateData);
 
-      // Tentar atualizar usando batch para garantir atomicidade
-      const batch = writeBatch(db);
-      batch.update(entryRef, updateData);
-      await batch.commit();
+      // Atualizar o documento
+      await updateDoc(entryRef, updateData);
 
       console.log('✅ Entrada atualizada com sucesso');
       return true;
@@ -199,6 +211,72 @@ export const useFirebase = () => {
     }
   };
 
+  const deleteLogEntry = async (entryId: string) => {
+    if (!currentUser) {
+      throw new Error('Usuário não autenticado');
+    }
+
+    try {
+      console.log('🗑️ Tentando excluir entrada:', entryId);
+      
+      const entryRef = doc(db, 'logEntries', entryId);
+      const entrySnap = await getDoc(entryRef);
+
+      if (!entrySnap.exists()) {
+        throw new Error('Entrada não encontrada');
+      }
+
+      const entryData = entrySnap.data();
+
+      // Verificar permissões
+      const canDelete = currentUser.role === 'admin' || 
+                       currentUser.role === 'logger' || 
+                       entryData.createdBy === currentUser.uid;
+
+      if (!canDelete) {
+        throw new Error('Sem permissão para excluir esta entrada');
+      }
+
+      await deleteDoc(entryRef);
+      console.log('✅ Entrada excluída com sucesso');
+      return true;
+
+    } catch (error: any) {
+      console.error('❌ Erro ao excluir entrada:', error);
+      throw new Error(`Erro ao excluir: ${error.message}`);
+    }
+  };
+
+  const deleteAllLogEntries = async () => {
+    if (!currentUser) {
+      throw new Error('Usuário não autenticado');
+    }
+
+    if (currentUser.role !== 'admin') {
+      throw new Error('Apenas administradores podem excluir todas as entradas');
+    }
+
+    try {
+      console.log('🗑️ Excluindo todas as entradas...');
+      
+      const logEntriesRef = collection(db, 'logEntries');
+      const snapshot = await getDocs(logEntriesRef);
+      
+      const batch = writeBatch(db);
+      snapshot.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      
+      await batch.commit();
+      console.log(`✅ ${snapshot.size} entradas excluídas com sucesso`);
+      return snapshot.size;
+
+    } catch (error: any) {
+      console.error('❌ Erro ao excluir todas as entradas:', error);
+      throw new Error(`Erro ao excluir todas as entradas: ${error.message}`);
+    }
+  };
+
   const useRealtimeData = <T>(collectionName: string): [T[], boolean] => {
     const [data, setData] = useState<T[]>([]);
     const [loading, setLoading] = useState(true);
@@ -209,11 +287,12 @@ export const useFirebase = () => {
       const unsubscribe = onSnapshot(q, (snapshot) => {
         const dataArray: T[] = [];
         snapshot.forEach((doc) => {
+          const docData = doc.data();
           dataArray.push({
-            id: doc.id,
-            ...doc.data(),
-            createdAt: doc.data().createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
-            updatedAt: doc.data().updatedAt?.toDate?.()?.toISOString() || new Date().toISOString()
+            id: doc.id, // SEMPRE usar o ID real do documento
+            ...docData,
+            createdAt: docData.createdAt?.toDate?.()?.toISOString() || new Date().toISOString(),
+            updatedAt: docData.updatedAt?.toDate?.()?.toISOString() || new Date().toISOString()
           } as T);
         });
         setData(dataArray);
@@ -237,6 +316,8 @@ export const useFirebase = () => {
     logout,
     addLogEntry,
     updateLogEntry,
+    deleteLogEntry,
+    deleteAllLogEntries,
     useRealtimeData
   };
 };

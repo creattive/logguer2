@@ -7,6 +7,8 @@ interface AppContextType {
   dispatch: React.Dispatch<AppAction>;
   addLogEntry: (entry: Omit<LogEntry, 'id' | 'createdAt' | 'createdBy'>) => Promise<void>;
   updateLogEntry: (entryId: string, updates: Partial<LogEntry>) => Promise<void>;
+  deleteLogEntry: (entryId: string) => Promise<void>;
+  deleteAllLogEntries: () => Promise<number>;
 }
 
 type AppAction = 
@@ -106,7 +108,14 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
-  const { currentUser, addLogEntry: firebaseAddLogEntry, updateLogEntry: firebaseUpdateLogEntry, useRealtimeData } = useFirebase();
+  const { 
+    currentUser, 
+    addLogEntry: firebaseAddLogEntry, 
+    updateLogEntry: firebaseUpdateLogEntry,
+    deleteLogEntry: firebaseDeleteLogEntry,
+    deleteAllLogEntries: firebaseDeleteAllLogEntries,
+    useRealtimeData 
+  } = useFirebase();
 
   const [participants] = useRealtimeData<Participant>('participants');
   const [locations] = useRealtimeData<Location>('locations');
@@ -178,8 +187,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await firebaseUpdateLogEntry(entryId, updates);
   };
 
+  const deleteLogEntry = async (entryId: string) => {
+    await firebaseDeleteLogEntry(entryId);
+  };
+
+  const deleteAllLogEntries = async () => {
+    return await firebaseDeleteAllLogEntries();
+  };
+
   return (
-    <AppContext.Provider value={{ state, dispatch, addLogEntry, updateLogEntry }}>
+    <AppContext.Provider value={{ 
+      state, 
+      dispatch, 
+      addLogEntry, 
+      updateLogEntry, 
+      deleteLogEntry, 
+      deleteAllLogEntries 
+    }}>
       {children}
     </AppContext.Provider>
   );
